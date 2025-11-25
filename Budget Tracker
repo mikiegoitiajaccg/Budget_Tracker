@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Department Budget Tracker 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Calm Neutrals (Stone, Zinc, and Emerald) -->
+    <!-- 
+      Application Structure Plan: A top-down dashboard. 
+      1. Global KPIs: Starts with "Total Projected Budget", "Total Actual Spend", and "Total Variance" stat cards for a high-level overview.
+      2. Visual Summary: A "Projected Budget by Category" donut chart shows the allocation, and a "Projected Quarterly Spend" bar chart (which updates via filter) shows the spending cadence.
+      3. Interactive Detail: A "Budget Detail" section with a category dropdown filter. This filter controls both the quarterly bar chart and the interactive data table below.
+      4. Core Interaction: The data table allows users to input "Actual YTD Spend" for each line item. 
+      5. User Flow: Inputting a value in the table instantly recalculates that row's "Variance", updates the Global KPIs, and will be reflected in future chart enhancements (e.g., actual vs. budget charts).
+      This dashboard structure is chosen over a flat table for superior usability, allowing users to see the big picture and drill down into details as needed.
+    -->
+    <!-- 
+      Visualization & Content Choices: 
+      1. Global KPIs (HTML/Tailwind Stat Cards): Goal: Inform. Interaction: Dynamically update when any "Actual" input changes. Justification: Immediate, top-level budget health status. (Library: Vanilla JS)
+      2. Projected Budget by Category (Chart.js Donut): Goal: Compare Proportions. Interaction: Static (shows planned allocation). Justification: Clearly visualizes where the budget is intended to go. (Library: Chart.js)
+      3. Projected Quarterly Spend (Chart.js Bar): Goal: Show Change/Trend. Interaction: Updates based on the category filter. Justification: Shows the planned spending rhythm and seasonality for different parts of the budget. (Library: Chart.js)
+      4. Interactive Data Table (HTML/JS): Goal: Organize/Input/Inform. Interaction: Rows filtered by category dropdown; "Variance" column updates live based on "Actual YTD Spend" input. Justification: This is the core "tracker" functionality, allowing data entry and detailed review. (Library: Vanilla JS)
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      
+      .chart-container {
+        position: relative;
+        width: 100%;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+        height: 300px;
+        max-height: 350px;
+      }
+      @media (min-width: 768px) {
+        .chart-container {
+          height: 350px;
+          max-height: 400px;
+        }
+      }
+      
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    </style>
+</head>
+<body class="bg-stone-50 text-zinc-800">
+
+  <div class="container mx-auto p-4 sm:p-6 lg:p-10">
+    
+    <header class="mb-8">
+      <h1 class="text-3xl md:text-4xl font-bold text-zinc-900">IT Department Budget Tracker</h1>
+      <p class="text-lg text-zinc-600">Fiscal Year 2026</p>
+    </header>
+
+    <!-- Global Summary KPIs -->
+    <section id="summary-kpis" class="mb-10">
+      <h2 class="text-2xl font-semibold text-zinc-900 mb-4">Overall Budget Health</h2>
+      <p class="text-zinc-600 mb-5 max-w-3xl">
+        This section provides a live overview of the entire IT budget. The "Total Actual Spend" and "Total Variance"
+        will update automatically as you enter spending data in the detail table below.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        <div class="bg-white p-5 rounded-lg shadow border border-stone-200">
+          <h3 class="text-sm font-medium text-zinc-500 uppercase tracking-wide">Total Projected Budget</h3>
+          <p id="total-budget" class="text-3xl font-bold text-zinc-900 mt-2">$0.00</p>
+        </div>
+        <div class="bg-white p-5 rounded-lg shadow border border-stone-200">
+          <h3 class="text-sm font-medium text-zinc-500 uppercase tracking-wide">Total Actual Spend</h3>
+          <p id="total-actual" class="text-3xl font-bold text-emerald-600 mt-2">$0.00</p>
+        </div>
+        <div class="bg-white p-5 rounded-lg shadow border border-stone-200">
+          <h3 class="text-sm font-medium text-zinc-500 uppercase tracking-wide">Total Variance (Remaining)</h3>
+          <p id="total-variance" class="text-3xl font-bold text-zinc-900 mt-2">$0.00</p>
+          <p id="variance-subtitle" class="text-sm text-zinc-500"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Summary Charts -->
+    <section id="visual-summary" class="mb-10">
+        <h2 class="text-2xl font-semibold text-zinc-900 mb-4">Visual Summary</h2>
+        <p class="text-zinc-600 mb-5 max-w-3xl">
+          These charts illustrate the planned budget allocation. The donut chart shows how the total budget is divided among the main categories.
+          The bar chart shows the planned spending cadence by quarter, which you can filter by category in the "Budget Detail" section below.
+        </p>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white p-5 rounded-lg shadow border border-stone-200">
+                <h3 class="text-lg font-semibold text-center mb-4">Projected Budget by Category</h3>
+                <div class="chart-container">
+                    <canvas id="categoryDonutChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-lg shadow border border-stone-200">
+                <h3 id="quarterly-chart-title" class="text-lg font-semibold text-center mb-4">Projected Quarterly Spend (All Categories)</h3>
+                 <div class="chart-container">
+                    <canvas id="quarterlyBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Budget Detail Section -->
+    <section id="budget-detail">
+      <h2 class="text-2xl font-semibold text-zinc-900 mb-4">Budget Detail & Tracker</h2>
+      <p class="text-zinc-600 mb-5 max-w-3xl">
+        Here you can track spending for each line item. Use the dropdown to filter the view by category. This filter
+        will update both the "Projected Quarterly Spend" chart above and the interactive table below. Enter your
+        year-to-date spending in the "Actual YTD Spend" column to automatically calculate the variance.
+      </p>
+
+      <div class="mb-5">
+        <label for="category-filter" class="block text-sm font-medium text-zinc-700 mb-2">Filter by Category</label>
+        <select id="category-filter" class="w-full max-w-xs rounded-md border-stone-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500">
+          <option value="All">All Categories</option>
+        </select>
+      </div>
+
+      <div class="bg-white rounded-lg shadow border border-stone-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-stone-200">
+            <thead class="bg-stone-100">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Category</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Item/Description</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Projected Annual</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Actual YTD Spend</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Variance</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Notes</th>
+              </tr>
+            </thead>
+            <tbody id="budget-table-body" class="bg-white divide-y divide-stone-200">
+              <!-- Rows will be injected by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const budgetData = [
+      { id: 1, category: "1. Personnel", subcategory: "Salaries", item: "Full-Time Staff (FTEs)", q1: 200000, q2: 200000, q3: 200000, q4: 200000, projected: 800000, actual: 0, notes: "5 Core Engineers, 1 Manager" },
+      { id: 2, category: "1. Personnel", subcategory: "Salaries", item: "Benefits and Taxes", q1: 45000, q2: 45000, q3: 45000, q4: 45000, projected: 180000, actual: 0, notes: "Estimate 22.5% of Salaries" },
+      { id: 3, category: "1. Personnel", subcategory: "Contractors", item: "Specialized External Resources", q1: 15000, q2: 15000, q3: 15000, q4: 15000, projected: 60000, actual: 0, notes: "External audit and project support" },
+      { id: 4, category: "2. Hardware & Infrastructure", subcategory: "Endpoint Devices", item: "Desktop/Laptop Refresh Program", q1: 60000, q2: 20000, q3: 10000, q4: 10000, projected: 100000, actual: 0, notes: "Bulk purchase Q1 (30 units)" },
+      { id: 5, category: "2. Hardware & Infrastructure", subcategory: "Cloud", item: "Google Cloud Platform (GCP)", q1: 40000, q2: 42000, q3: 44000, q4: 46000, projected: 172000, actual: 0, notes: "Anticipated 5% growth per quarter" },
+      { id: 6, category: "2. Hardware & Infrastructure", subcategory: "Networking", item: "Firewall/Router replacement", q1: 5000, q2: 0, q3: 15000, q4: 0, projected: 20000, actual: 0, notes: "Major upgrade planned in Q3" },
+      { id: 7, category: "3. Software & Subscriptions", subcategory: "Annual Licensing", item: "Enterprise productivity suite", q1: 95000, q2: 0, q3: 0, q4: 0, projected: 95000, actual: 0, notes: "Paid annually in January" },
+      { id: 8, category: "3. Software & Subscriptions", subcategory: "SaaS Tools", item: "Security & Monitoring (e.g., SIEM)", q1: 8000, q2: 8000, q3: 8000, q4: 8000, projected: 32000, actual: 0, notes: "$2,667/month subscription" },
+      { id: 9, category: "3. Software & Subscriptions", subcategory: "Dev Tools", item: "Coding/Testing Subscriptions", q1: 2500, q2: 2500, q3: 2500, q4: 2500, projected: 10000, actual: 0, notes: "Developer seats and licenses" },
+      { id: 10, category: "4. Training & Development", subcategory: "Certifications", item: "Technical Training Courses", q1: 4000, q2: 0, q3: 6000, q4: 0, projected: 10000, actual: 0, notes: "Team training events (Q1 & Q3)" },
+      { id: 11, category: "4. Training & Development", subcategory: "Travel", item: "Conferences and Seminars", q1: 1500, q2: 3500, q3: 0, q4: 2000, projected: 7000, actual: 0, notes: "Attending major industry conference in Q2" },
+      { id: 12, category: "5. Operational Expenses", subcategory: "Office/Utility", item: "Server Room Power/Cooling", q1: 4000, q2: 4000, q3: 4000, q4: 4000, projected: 16000, actual: 0, notes: "Estimate for data center operations" },
+      { id: 13, category: "5. Operational Expenses", subcategory: "Consumables", item: "Backup Media, Printer Supplies", q1: 500, q2: 500, q3: 500, q4: 500, projected: 2000, actual: 0, notes: "Misc. supplies" }
+    ];
+
+    const categories = [...new Set(budgetData.map(item => item.category))];
+    
+    let categoryDonutChart;
+    let quarterlyBarChart;
+
+    const formatCurrency = (value) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(value);
+    };
+    
+    const formatLabel = (str, maxLen) => {
+      if (str.length <= maxLen) return str;
+      const words = str.split(' ');
+      let currentLine = '';
+      const lines = [];
+      for (const word of words) {
+        if ((currentLine + ' ' + word).length > maxLen && currentLine.length > 0) {
+          lines.push(currentLine.trim());
+          currentLine = word;
+        } else {
+          currentLine += (currentLine.length === 0 ? '' : ' ') + word;
+        }
+      }
+      lines.push(currentLine.trim());
+      return lines;
+    };
+
+    const getCategoryTotals = () => {
+      const totals = {};
+      categories.forEach(category => {
+        totals[category] = budgetData
+          .filter(item => item.category === category)
+          .reduce((sum, item) => sum + item.projected, 0);
+      });
+      return totals;
+    };
+
+    const getQuarterlyTotals = (filter = "All") => {
+      const filteredData = filter === "All"
+        ? budgetData
+        : budgetData.filter(item => item.category === filter);
+        
+      return {
+        q1: filteredData.reduce((sum, item) => sum + item.q1, 0),
+        q2: filteredData.reduce((sum, item) => sum + item.q2, 0),
+        q3: filteredData.reduce((sum, item) => sum + item.q3, 0),
+        q4: filteredData.reduce((sum, item) => sum + item.q4, 0),
+      };
+    };
+
+    const renderTable = (filter = "All") => {
+      const tableBody = document.getElementById('budget-table-body');
+      tableBody.innerHTML = '';
+      
+      const filteredData = filter === "All"
+        ? budgetData
+        : budgetData.filter(item => item.category === filter);
+
+      if (filteredData.length === 0) {
+          tableBody.innerHTML = `<tr><td colspan="6" class="text-center px-6 py-4 text-zinc-500">No data found for this category.</td></tr>`;
+          return;
+      }
+
+      filteredData.forEach(item => {
+        const variance = item.projected - item.actual;
+        const varianceColor = variance < 0 ? 'text-red-600' : 'text-zinc-900';
+        
+        const row = `
+          <tr id="row-${item.id}">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-600">${item.category}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">${item.item}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-600">${formatCurrency(item.projected)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+              <input 
+                type="number" 
+                data-id="${item.id}"
+                value="${item.actual === 0 ? '' : item.actual}"
+                placeholder="0.00"
+                class="w-32 rounded-md border-stone-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
+                oninput="handleInput(event)"
+              >
+            </td>
+            <td class="variance-cell px-6 py-4 whitespace-nowrap text-sm font-medium ${varianceColor}">${formatCurrency(variance)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">${item.notes}</td>
+          </tr>
+        `;
+        tableBody.innerHTML += row;
+      });
+    };
+    
+    const handleInput = (event) => {
+      const itemId = parseInt(event.target.dataset.id, 10);
+      const value = parseFloat(event.target.value) || 0;
+      
+      const item = budgetData.find(d => d.id === itemId);
+      item.actual = value;
+      
+      const newVariance = item.projected - item.actual;
+      const varianceCell = document.querySelector(`#row-${item.id} .variance-cell`);
+      varianceCell.textContent = formatCurrency(newVariance);
+      
+      if (newVariance < 0) {
+        varianceCell.classList.remove('text-zinc-900');
+        varianceCell.classList.add('text-red-600');
+      } else {
+        varianceCell.classList.remove('text-red-600');
+        varianceCell.classList.add('text-zinc-900');
+      }
+      
+      updateGlobalKPIs();
+    };
+
+    const updateGlobalKPIs = () => {
+      const totalProjected = budgetData.reduce((sum, item) => sum + item.projected, 0);
+      const totalActual = budgetData.reduce((sum, item) => sum + item.actual, 0);
+      const totalVariance = totalProjected - totalActual;
+      
+      document.getElementById('total-budget').textContent = formatCurrency(totalProjected);
+      document.getElementById('total-actual').textContent = formatCurrency(totalActual);
+      document.getElementById('total-variance').textContent = formatCurrency(totalVariance);
+      
+      const varianceSubtitle = document.getElementById('variance-subtitle');
+      if (totalVariance < 0) {
+        document.getElementById('total-variance').classList.add('text-red-600');
+        document.getElementById('total-variance').classList.remove('text-zinc-900');
+        varianceSubtitle.textContent = `Over budget by ${formatCurrency(Math.abs(totalVariance))}`;
+      } else {
+        document.getElementById('total-variance').classList.remove('text-red-600');
+        document.getElementById('total-variance').classList.add('text-zinc-900');
+        varianceSubtitle.textContent = `Under budget`;
+      }
+    };
+    
+    const setupFilters = () => {
+      const filterSelect = document.getElementById('category-filter');
+      categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        filterSelect.appendChild(option);
+      });
+      
+      filterSelect.addEventListener('change', (event) => {
+        const selectedCategory = event.target.value;
+        renderTable(selectedCategory);
+        updateQuarterlyBarChart(selectedCategory);
+      });
+    };
+
+    const createCategoryDonutChart = () => {
+      const ctx = document.getElementById('categoryDonutChart').getContext('2d');
+      const categoryTotals = getCategoryTotals();
+      
+      categoryDonutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(categoryTotals),
+          datasets: [{
+            label: 'Projected Budget',
+            data: Object.values(categoryTotals),
+            backgroundColor: [
+              '#10b981', // emerald-500
+              '#3b82f6', // blue-500
+              '#f97316', // orange-500
+              '#8b5cf6', // violet-500
+              '#ec4899', // pink-500
+            ],
+            borderColor: '#ffffff',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                 padding: 15,
+                 font: {
+                    size: 11,
+                 }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed !== null) {
+                    label += formatCurrency(context.parsed);
+                  }
+                  return formatLabel(label, 20);
+                }
+              }
+            }
+          }
+        }
+      });
+    };
+    
+    const createQuarterlyBarChart = () => {
+        const ctx = document.getElementById('quarterlyBarChart').getContext('2d');
+        const quarterlyTotals = getQuarterlyTotals("All");
+        
+        quarterlyBarChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+                datasets: [{
+                    label: 'Projected Quarterly Budget',
+                    data: Object.values(quarterlyTotals),
+                    backgroundColor: '#10b981', // emerald-500
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => formatCurrency(value)
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    };
+    
+    const updateQuarterlyBarChart = (filter = "All") => {
+        const quarterlyTotals = getQuarterlyTotals(filter);
+        quarterlyBarChart.data.datasets[0].data = Object.values(quarterlyTotals);
+        quarterlyBarChart.update();
+        
+        const title = filter === "All" ? "Projected Quarterly Spend (All Categories)" : `Projected Quarterly Spend (${filter})`;
+        document.getElementById('quarterly-chart-title').textContent = title;
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderTable();
+      setupFilters();
+      updateGlobalKPIs();
+      createCategoryDonutChart();
+      createQuarterlyBarChart();
+    });
+
+  </script>
+</body>
+</html>
