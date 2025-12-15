@@ -6,24 +6,6 @@
     <title>IT Department Budget Tracker 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Chosen Palette: Calm Neutrals (Stone, Zinc, and Emerald) -->
-    <!-- 
-      Application Structure Plan: A top-down dashboard. 
-      1. Global KPIs: Starts with "Total Projected Budget", "Total Actual Spend", and "Total Variance" stat cards for a high-level overview.
-      2. Visual Summary: A "Projected Budget by Category" donut chart shows the allocation, and a "Projected Quarterly Spend" bar chart (which updates via filter) shows the spending cadence.
-      3. Interactive Detail: A "Budget Detail" section with a category dropdown filter. This filter controls both the quarterly bar chart and the interactive data table below.
-      4. Core Interaction: The data table allows users to input "Actual YTD Spend" for each line item. 
-      5. User Flow: Inputting a value in the table instantly recalculates that row's "Variance", updates the Global KPIs, and will be reflected in future chart enhancements (e.g., actual vs. budget charts).
-      This dashboard structure is chosen over a flat table for superior usability, allowing users to see the big picture and drill down into details as needed.
-    -->
-    <!-- 
-      Visualization & Content Choices: 
-      1. Global KPIs (HTML/Tailwind Stat Cards): Goal: Inform. Interaction: Dynamically update when any "Actual" input changes. Justification: Immediate, top-level budget health status. (Library: Vanilla JS)
-      2. Projected Budget by Category (Chart.js Donut): Goal: Compare Proportions. Interaction: Static (shows planned allocation). Justification: Clearly visualizes where the budget is intended to go. (Library: Chart.js)
-      3. Projected Quarterly Spend (Chart.js Bar): Goal: Show Change/Trend. Interaction: Updates based on the category filter. Justification: Shows the planned spending rhythm and seasonality for different parts of the budget. (Library: Chart.js)
-      4. Interactive Data Table (HTML/JS): Goal: Organize/Input/Inform. Interaction: Rows filtered by category dropdown; "Variance" column updates live based on "Actual YTD Spend" input. Justification: This is the core "tracker" functionality, allowing data entry and detailed review. (Library: Vanilla JS)
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
       body {
         font-family: 'Inter', sans-serif;
@@ -46,6 +28,7 @@
         }
       }
       
+      /* Hide arrows/spinners for number inputs */
       input[type="number"] {
         -moz-appearance: textfield;
       }
@@ -53,6 +36,38 @@
       input[type="number"]::-webkit-inner-spin-button {
         -webkit-appearance: none;
         margin: 0;
+      }
+
+      /* Base style for editable inputs in the table */
+      .table-input {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem; /* sm:text-sm */
+        line-height: 1.25rem;
+        border-color: #e5e5e5; /* stone-300 */
+        border-radius: 0.375rem; /* rounded-md */
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        transition: all 0.15s ease-in-out;
+      }
+      .table-input:focus {
+        border-color: #10b981; /* emerald-500 */
+        box-shadow: 0 0 0 1px #10b981, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+      }
+
+      /* Specific widths for input types */
+      .input-text-sm {
+        width: 100%;
+        max-width: 100px; /* Max width for smaller text fields */
+      }
+      .input-text-lg {
+        width: 100%;
+        max-width: 250px; /* Max width for larger text fields like notes */
+      }
+      .input-currency {
+        width: 100%;
+        max-width: 100px; /* Max width for currency fields */
+        text-align: right;
       }
     </style>
 </head>
@@ -65,7 +80,6 @@
       <p class="text-lg text-zinc-600">Fiscal Year 2026</p>
     </header>
 
-    <!-- Global Summary KPIs -->
     <section id="summary-kpis" class="mb-10">
       <h2 class="text-2xl font-semibold text-zinc-900 mb-4">Overall Budget Health</h2>
       <p class="text-zinc-600 mb-5 max-w-3xl">
@@ -89,7 +103,6 @@
       </div>
     </section>
 
-    <!-- Visual Summary Charts -->
     <section id="visual-summary" class="mb-10">
         <h2 class="text-2xl font-semibold text-zinc-900 mb-4">Visual Summary</h2>
         <p class="text-zinc-600 mb-5 max-w-3xl">
@@ -112,13 +125,10 @@
         </div>
     </section>
 
-    <!-- Budget Detail Section -->
     <section id="budget-detail">
-      <h2 class="text-2xl font-semibold text-zinc-900 mb-4">Budget Detail & Tracker</h2>
+      <h2 class="text-2xl font-semibold text-zinc-900 mb-4">Budget Detail & Tracker (All Fields Editable)</h2>
       <p class="text-zinc-600 mb-5 max-w-3xl">
-        Here you can track spending for each line item. Use the dropdown to filter the view by category. This filter
-        will update both the "Projected Quarterly Spend" chart above and the interactive table below. Enter your
-        year-to-date spending in the "Actual YTD Spend" column to automatically calculate the variance.
+        All fields in the table below are now editable. Changing **Projected Annual** or **Actual YTD Spend** will automatically recalculate the **Variance** and update the Global KPIs and Charts.
       </p>
 
       <div class="mb-5">
@@ -133,17 +143,16 @@
           <table class="min-w-full divide-y divide-stone-200">
             <thead class="bg-stone-100">
               <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Category</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Item/Description</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Projected Annual</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Actual YTD Spend</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Variance</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Notes</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider min-w-[150px]">Category</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider min-w-[200px]">Item/Description</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider min-w-[150px]">Projected Annual</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider min-w-[150px]">Actual YTD Spend</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider min-w-[120px]">Variance</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider min-w-[250px]">Notes</th>
               </tr>
             </thead>
             <tbody id="budget-table-body" class="bg-white divide-y divide-stone-200">
-              <!-- Rows will be injected by JavaScript -->
-            </tbody>
+              </tbody>
           </table>
         </div>
       </div>
@@ -152,7 +161,8 @@
   </div>
 
   <script>
-    const budgetData = [
+    // Global data structure
+    let budgetData = [
       { id: 1, category: "1. Personnel", subcategory: "Salaries", item: "Full-Time Staff (FTEs)", q1: 200000, q2: 200000, q3: 200000, q4: 200000, projected: 800000, actual: 0, notes: "5 Core Engineers, 1 Manager" },
       { id: 2, category: "1. Personnel", subcategory: "Salaries", item: "Benefits and Taxes", q1: 45000, q2: 45000, q3: 45000, q4: 45000, projected: 180000, actual: 0, notes: "Estimate 22.5% of Salaries" },
       { id: 3, category: "1. Personnel", subcategory: "Contractors", item: "Specialized External Resources", q1: 15000, q2: 15000, q3: 15000, q4: 15000, projected: 60000, actual: 0, notes: "External audit and project support" },
@@ -168,18 +178,20 @@
       { id: 13, category: "5. Operational Expenses", subcategory: "Consumables", item: "Backup Media, Printer Supplies", q1: 500, q2: 500, q3: 500, q4: 500, projected: 2000, actual: 0, notes: "Misc. supplies" }
     ];
 
-    const categories = [...new Set(budgetData.map(item => item.category))];
+    let categories = [...new Set(budgetData.map(item => item.category))];
     
     let categoryDonutChart;
     let quarterlyBarChart;
 
     const formatCurrency = (value) => {
+      // Ensure the value is a number and not null/undefined for formatting
+      const numberValue = parseFloat(value) || 0;
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
-      }).format(value);
+      }).format(numberValue);
     };
     
     const formatLabel = (str, maxLen) => {
@@ -201,10 +213,13 @@
 
     const getCategoryTotals = () => {
       const totals = {};
-      categories.forEach(category => {
+      // Recalculate categories array based on current data
+      const currentCategories = [...new Set(budgetData.map(item => item.category))];
+      
+      currentCategories.forEach(category => {
         totals[category] = budgetData
           .filter(item => item.category === category)
-          .reduce((sum, item) => sum + item.projected, 0);
+          .reduce((sum, item) => sum + (parseFloat(item.projected) || 0), 0);
       });
       return totals;
     };
@@ -215,12 +230,72 @@
         : budgetData.filter(item => item.category === filter);
         
       return {
-        q1: filteredData.reduce((sum, item) => sum + item.q1, 0),
-        q2: filteredData.reduce((sum, item) => sum + item.q2, 0),
-        q3: filteredData.reduce((sum, item) => sum + item.q3, 0),
-        q4: filteredData.reduce((sum, item) => sum + item.q4, 0),
+        q1: filteredData.reduce((sum, item) => sum + (parseFloat(item.q1) || 0), 0),
+        q2: filteredData.reduce((sum, item) => sum + (parseFloat(item.q2) || 0), 0),
+        q3: filteredData.reduce((sum, item) => sum + (parseFloat(item.q3) || 0), 0),
+        q4: filteredData.reduce((sum, item) => sum + (parseFloat(item.q4) || 0), 0),
       };
     };
+
+    const updateCalculatedFields = (itemId) => {
+        const item = budgetData.find(d => d.id === itemId);
+        
+        // Ensure values are numbers before calculation
+        const projected = parseFloat(item.projected) || 0;
+        const actual = parseFloat(item.actual) || 0;
+        
+        const newVariance = projected - actual;
+        
+        // Update the variance cell in the table
+        const varianceCell = document.querySelector(`#row-${item.id} .variance-cell`);
+        if (varianceCell) {
+            varianceCell.textContent = formatCurrency(newVariance);
+            if (newVariance < 0) {
+                varianceCell.classList.remove('text-zinc-900');
+                varianceCell.classList.add('text-red-600');
+            } else {
+                varianceCell.classList.remove('text-red-600');
+                varianceCell.classList.add('text-zinc-900');
+            }
+        }
+        
+        updateGlobalKPIs();
+        updateCharts();
+    }
+    
+    // Global edit handler for all editable fields (text, number/currency)
+    const handleEdit = (event) => {
+        const itemId = parseInt(event.target.dataset.id, 10);
+        const field = event.target.dataset.field;
+        let value = event.target.value;
+
+        const item = budgetData.find(d => d.id === itemId);
+
+        if (field === 'projected' || field === 'actual') {
+            // Convert to number for financial fields. Null if invalid/empty
+            value = parseFloat(value) || 0;
+            // Also need to recalculate Q totals if 'projected' changes.
+            // For simplicity, we assume projected total change doesn't update Q breakdown here.
+        } 
+        
+        // Update the item in the data array
+        item[field] = value;
+
+        // Recalculate variance and update KPIs/Charts
+        updateCalculatedFields(itemId);
+        
+        // If Category changed, need to re-render the filter dropdown and current filter status
+        if (field === 'category') {
+            updateCategoryFilterDropdown();
+            // Re-render table and charts based on current filter to ensure new category is displayed correctly
+            const currentFilter = document.getElementById('category-filter').value;
+            renderTable(currentFilter);
+            updateQuarterlyBarChart(currentFilter);
+        }
+    };
+    // Expose handleEdit to the global scope for use in oninput/onchange attributes
+    window.handleEdit = handleEdit;
+
 
     const renderTable = (filter = "All") => {
       const tableBody = document.getElementById('budget-table-body');
@@ -236,57 +311,84 @@
       }
 
       filteredData.forEach(item => {
-        const variance = item.projected - item.actual;
+        const projected = parseFloat(item.projected) || 0;
+        const actual = parseFloat(item.actual) || 0;
+        const variance = projected - actual;
         const varianceColor = variance < 0 ? 'text-red-600' : 'text-zinc-900';
         
+        // Using 'onchange' for text/number fields to only fire when user tabs out or presses enter, 
+        // to prevent over-calculating on every keystroke for non-critical fields.
+        // 'oninput' is only kept for 'Actual YTD Spend' for real-time variance update (via handleEdit).
+        
         const row = `
-          <tr id="row-${item.id}">
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-600">${item.category}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">${item.item}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-600">${formatCurrency(item.projected)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm">
-              <input 
-                type="number" 
-                data-id="${item.id}"
-                value="${item.actual === 0 ? '' : item.actual}"
-                placeholder="0.00"
-                class="w-32 rounded-md border-stone-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm"
-                oninput="handleInput(event)"
-              >
+          <tr id="row-${item.id}" class="hover:bg-stone-50 transition-colors">
+            <td class="px-6 py-2 whitespace-nowrap text-sm text-zinc-600">
+                <input
+                    type="text"
+                    data-id="${item.id}"
+                    data-field="category"
+                    value="${item.category}"
+                    class="table-input input-text-sm"
+                    onchange="handleEdit(event)"
+                >
             </td>
-            <td class="variance-cell px-6 py-4 whitespace-nowrap text-sm font-medium ${varianceColor}">${formatCurrency(variance)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">${item.notes}</td>
+            <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-zinc-900">
+                <input
+                    type="text"
+                    data-id="${item.id}"
+                    data-field="item"
+                    value="${item.item}"
+                    class="table-input w-full"
+                    onchange="handleEdit(event)"
+                >
+            </td>
+            <td class="px-6 py-2 whitespace-nowrap text-sm text-zinc-600">
+                <input
+                    type="number"
+                    data-id="${item.id}"
+                    data-field="projected"
+                    value="${item.projected}"
+                    placeholder="0"
+                    min="0"
+                    class="table-input input-currency"
+                    onchange="handleEdit(event)"
+                >
+            </td>
+            <td class="px-6 py-2 whitespace-nowrap text-sm">
+                <input 
+                    type="number" 
+                    data-id="${item.id}"
+                    data-field="actual"
+                    value="${item.actual === 0 ? '' : item.actual}"
+                    placeholder="0"
+                    min="0"
+                    class="table-input input-currency text-emerald-600 font-medium"
+                    oninput="handleEdit(event)" 
+                >
+            </td>
+            <td class="variance-cell px-6 py-4 whitespace-nowrap text-sm font-medium ${varianceColor}">
+                ${formatCurrency(variance)}
+            </td>
+            <td class="px-6 py-2 whitespace-nowrap text-sm text-zinc-500">
+                <input
+                    type="text"
+                    data-id="${item.id}"
+                    data-field="notes"
+                    value="${item.notes}"
+                    class="table-input input-text-lg"
+                    onchange="handleEdit(event)"
+                >
+            </td>
           </tr>
         `;
         tableBody.innerHTML += row;
       });
     };
     
-    const handleInput = (event) => {
-      const itemId = parseInt(event.target.dataset.id, 10);
-      const value = parseFloat(event.target.value) || 0;
-      
-      const item = budgetData.find(d => d.id === itemId);
-      item.actual = value;
-      
-      const newVariance = item.projected - item.actual;
-      const varianceCell = document.querySelector(`#row-${item.id} .variance-cell`);
-      varianceCell.textContent = formatCurrency(newVariance);
-      
-      if (newVariance < 0) {
-        varianceCell.classList.remove('text-zinc-900');
-        varianceCell.classList.add('text-red-600');
-      } else {
-        varianceCell.classList.remove('text-red-600');
-        varianceCell.classList.add('text-zinc-900');
-      }
-      
-      updateGlobalKPIs();
-    };
-
+    // Simplified function to update the global KPIs (used by all edit handlers)
     const updateGlobalKPIs = () => {
-      const totalProjected = budgetData.reduce((sum, item) => sum + item.projected, 0);
-      const totalActual = budgetData.reduce((sum, item) => sum + item.actual, 0);
+      const totalProjected = budgetData.reduce((sum, item) => sum + (parseFloat(item.projected) || 0), 0);
+      const totalActual = budgetData.reduce((sum, item) => sum + (parseFloat(item.actual) || 0), 0);
       const totalVariance = totalProjected - totalActual;
       
       document.getElementById('total-budget').textContent = formatCurrency(totalProjected);
@@ -294,26 +396,62 @@
       document.getElementById('total-variance').textContent = formatCurrency(totalVariance);
       
       const varianceSubtitle = document.getElementById('variance-subtitle');
+      const varianceElement = document.getElementById('total-variance');
+      
       if (totalVariance < 0) {
-        document.getElementById('total-variance').classList.add('text-red-600');
-        document.getElementById('total-variance').classList.remove('text-zinc-900');
+        varianceElement.classList.add('text-red-600');
+        varianceElement.classList.remove('text-zinc-900');
         varianceSubtitle.textContent = `Over budget by ${formatCurrency(Math.abs(totalVariance))}`;
       } else {
-        document.getElementById('total-variance').classList.remove('text-red-600');
-        document.getElementById('total-variance').classList.add('text-zinc-900');
+        varianceElement.classList.remove('text-red-600');
+        varianceElement.classList.add('text-zinc-900');
         varianceSubtitle.textContent = `Under budget`;
       }
     };
+
+    // Consolidated chart update logic
+    const updateCharts = () => {
+        if (categoryDonutChart) {
+            const categoryTotals = getCategoryTotals();
+            categoryDonutChart.data.labels = Object.keys(categoryTotals);
+            categoryDonutChart.data.datasets[0].data = Object.values(categoryTotals);
+            categoryDonutChart.update();
+        }
+        
+        // Use the current filter to update the bar chart
+        const currentFilter = document.getElementById('category-filter').value;
+        updateQuarterlyBarChart(currentFilter);
+    }
+    
+    const updateCategoryFilterDropdown = () => {
+        // 1. Recalculate categories array from current data
+        categories = [...new Set(budgetData.map(item => item.category))];
+        
+        // 2. Preserve current selected value
+        const filterSelect = document.getElementById('category-filter');
+        const currentValue = filterSelect.value;
+        
+        // 3. Clear and re-populate dropdown
+        filterSelect.innerHTML = '<option value="All">All Categories</option>';
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            filterSelect.appendChild(option);
+        });
+        
+        // 4. Restore selected value if it still exists, otherwise default to 'All'
+        if (categories.includes(currentValue)) {
+            filterSelect.value = currentValue;
+        } else {
+            filterSelect.value = 'All';
+        }
+    }
     
     const setupFilters = () => {
+      updateCategoryFilterDropdown(); // Initial setup
+
       const filterSelect = document.getElementById('category-filter');
-      categories.forEach(category => {
-        const option = document.createElement('option');
-        option.value = category;
-        option.textContent = category;
-        filterSelect.appendChild(option);
-      });
-      
       filterSelect.addEventListener('change', (event) => {
         const selectedCategory = event.target.value;
         renderTable(selectedCategory);
@@ -352,7 +490,7 @@
               labels: {
                  padding: 15,
                  font: {
-                    size: 11,
+                   size: 11,
                  }
               }
             },
@@ -364,9 +502,16 @@
                     label += ': ';
                   }
                   if (context.parsed !== null) {
-                    label += formatCurrency(context.parsed);
+                    // Use standard number formatter for currency in tooltip
+                    const currencyValue = new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                    }).format(context.parsed);
+                    label += currencyValue;
                   }
-                  return formatLabel(label, 20);
+                  return formatLabel(label, 25);
                 }
               }
             }
@@ -422,16 +567,18 @@
     
     const updateQuarterlyBarChart = (filter = "All") => {
         const quarterlyTotals = getQuarterlyTotals(filter);
-        quarterlyBarChart.data.datasets[0].data = Object.values(quarterlyTotals);
-        quarterlyBarChart.update();
+        if (quarterlyBarChart) {
+            quarterlyBarChart.data.datasets[0].data = Object.values(quarterlyTotals);
+            quarterlyBarChart.update();
+        }
         
         const title = filter === "All" ? "Projected Quarterly Spend (All Categories)" : `Projected Quarterly Spend (${filter})`;
         document.getElementById('quarterly-chart-title').textContent = title;
     };
 
     window.addEventListener('DOMContentLoaded', () => {
-      renderTable();
       setupFilters();
+      renderTable();
       updateGlobalKPIs();
       createCategoryDonutChart();
       createQuarterlyBarChart();
